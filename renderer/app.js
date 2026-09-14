@@ -17,11 +17,28 @@ function statusLabel(status) {
   return 'Nunca implantado';
 }
 
+function localDateStr(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char]);
+}
+
 function renderMacroGrid() {
   const grid = document.getElementById('macro-grid');
   grid.innerHTML = '';
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
 
   state.projects
     .filter((p) => p.ativo)
@@ -30,9 +47,10 @@ function renderMacroGrid() {
       card.className = 'project-card';
 
       const checklistDoneToday = !!project.checklistHistorico[today];
+      const title = `${escapeHtml(project.numero)} - ${escapeHtml(project.cliente)} - ${escapeHtml(project.contextoMacro)}`;
 
       card.innerHTML = `
-        <h3>${project.numero} - ${project.cliente} - ${project.contextoMacro}</h3>
+        <h3>${title}</h3>
         <div class="badges">
           ${project.avisoDeployObrigatorio ? '<span class="badge badge-warn">Deploy obrigatório</span>' : ''}
           ${project.avisoVideoEEnv ? '<span class="badge badge-warn">Vídeo + env</span>' : ''}

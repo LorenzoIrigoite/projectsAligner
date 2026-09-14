@@ -703,7 +703,11 @@ const baseDir = path.join(app.getPath('userData'), 'projects-aligner-data');
 const store = createStore(baseDir);
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function createWindow() {
@@ -955,11 +959,28 @@ function statusLabel(status) {
   return 'Nunca implantado';
 }
 
+function localDateStr(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char]);
+}
+
 function renderMacroGrid() {
   const grid = document.getElementById('macro-grid');
   grid.innerHTML = '';
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
 
   state.projects
     .filter((p) => p.ativo)
@@ -968,9 +989,10 @@ function renderMacroGrid() {
       card.className = 'project-card';
 
       const checklistDoneToday = !!project.checklistHistorico[today];
+      const title = `${escapeHtml(project.numero)} - ${escapeHtml(project.cliente)} - ${escapeHtml(project.contextoMacro)}`;
 
       card.innerHTML = `
-        <h3>${project.numero} - ${project.cliente} - ${project.contextoMacro}</h3>
+        <h3>${title}</h3>
         <div class="badges">
           ${project.avisoDeployObrigatorio ? '<span class="badge badge-warn">Deploy obrigatório</span>' : ''}
           ${project.avisoVideoEEnv ? '<span class="badge badge-warn">Vídeo + env</span>' : ''}
@@ -1090,8 +1112,9 @@ test (or none, if that data directory was cleared). Click "+ Novo projeto",
 fill the form, submit, and see a new card appear. Toggle its checklist
 checkbox and confirm the deploy status badge stays "Nunca implantado" (since
 no deploy has been marked yet). Click "Marcar deploy feito" and confirm the
-badge turns green ("Atualizado"). Toggle the checklist again and confirm the
-badge turns yellow ("Pendente").
+badge turns green ("Atualizado"). Uncheck the checklist and confirm the badge
+stays green; then check it again (a completion after the deploy) and confirm
+the badge turns yellow ("Pendente").
 
 - [ ] **Step 6: Commit**
 
