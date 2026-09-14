@@ -28,7 +28,7 @@ for unit tests, `electron-builder` for packaging a Windows installer.
 - Checklist is a single daily toggle per project, not a customizable sub-item list.
 - "Dias bônus" are informational only — they never shift the day-6/7 deploy or day-7 video/env triggers.
 - The "lembrete para o próximo dia" only surfaces in the project detail view, never on the macro grid.
-- Deploy status is always derived (never a directly-editable field): `nunca_implantado` / `pendente` / `atualizado`, computed from `ultimoDeploy` vs. `checklistHistorico`.
+- Deploy status is always derived (never a directly-editable field): `nunca_implantado` / `pendente` / `atualizado`, computed from `ultimoDeploy` vs. `ultimoChecklistFeitoEm`; marking a checklist done and then marking deploy done on the same day yields `atualizado`.
 - Persisted data (`projects.json`, `uploads/`) lives under `app.getPath('userData')`, never inside the repo working tree.
 
 ---
@@ -703,7 +703,11 @@ const baseDir = path.join(app.getPath('userData'), 'projects-aligner-data');
 const store = createStore(baseDir);
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function createWindow() {
@@ -881,6 +885,7 @@ git commit -m "feat: wire IPC layer between renderer and local project store"
   <main id="view-detail" class="view hidden">
     <button id="btn-back-to-macro">&larr; Voltar</button>
     <h2 id="detail-title"></h2>
+    <div id="detail-meta"></div>
     <nav class="tabs">
       <button class="tab-btn" data-tab="contexto">Contexto</button>
       <button class="tab-btn" data-tab="estimativa">Estimativa</button>
@@ -954,11 +959,28 @@ function statusLabel(status) {
   return 'Nunca implantado';
 }
 
+function localDateStr(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char]);
+}
+
 function renderMacroGrid() {
   const grid = document.getElementById('macro-grid');
   grid.innerHTML = '';
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
 
   state.projects
     .filter((p) => p.ativo)
@@ -967,9 +989,10 @@ function renderMacroGrid() {
       card.className = 'project-card';
 
       const checklistDoneToday = !!project.checklistHistorico[today];
+      const title = `${escapeHtml(project.numero)} - ${escapeHtml(project.cliente)} - ${escapeHtml(project.contextoMacro)}`;
 
       card.innerHTML = `
-        <h3>${project.numero} - ${project.cliente} - ${project.contextoMacro}</h3>
+        <h3>${title}</h3>
         <div class="badges">
           ${project.avisoDeployObrigatorio ? '<span class="badge badge-warn">Deploy obrigatório</span>' : ''}
           ${project.avisoVideoEEnv ? '<span class="badge badge-warn">Vídeo + env</span>' : ''}
@@ -1089,8 +1112,9 @@ test (or none, if that data directory was cleared). Click "+ Novo projeto",
 fill the form, submit, and see a new card appear. Toggle its checklist
 checkbox and confirm the deploy status badge stays "Nunca implantado" (since
 no deploy has been marked yet). Click "Marcar deploy feito" and confirm the
-badge turns green ("Atualizado"). Toggle the checklist again and confirm the
-badge turns yellow ("Pendente").
+badge turns green ("Atualizado"). Uncheck the checklist and confirm the badge
+stays green; then check it again (a completion after the deploy) and confirm
+the badge turns yellow ("Pendente").
 
 - [ ] **Step 6: Commit**
 
@@ -1110,10 +1134,14 @@ git commit -m "feat: add macro grid view with checklist and deploy actions"
 **Interfaces:**
 - Consumes: `window.api.getProject`, `window.api.updateProject`,
   `window.api.markDeployDone` (Task 6); `statusLabel` and `loadProjects` from
-  `renderer/app.js` (Task 7).
+  `renderer/app.js` (Task 7); the `#detail-meta` container added to
+  `renderer/index.html` in Task 7.
 - Produces:
   - `openDetail(id: string): Promise<void>` (replaces Task 7's placeholder)
-  - `refreshDetail(): Promise<void>`
+  - `refreshDetail(): Promise<void>` — also renders the `#detail-meta` block
+    (dias bônus + marcar projeto como inativo/concluído), covering the
+    spec's macro-view actions "editar dias bônus" and "marcar projeto como
+    inativo" via controls reachable from the detail view.
   - `activateTab(tabName: string): void`
   - `TAB_RENDERERS: Record<string, (project) => void>` — a plain object
     Tasks 9-11 extend with one more entry each (`env`, `credenciais`, `fotos`).
@@ -1142,7 +1170,34 @@ async function refreshDetail() {
   const project = await window.api.getProject(currentProjectId);
   document.getElementById('detail-title').textContent =
     `${project.numero} - ${project.cliente} - ${project.contextoMacro}`;
+  renderDetailMeta(project);
   Object.values(TAB_RENDERERS).forEach((renderFn) => renderFn(project));
+}
+
+function renderDetailMeta(project) {
+  const meta = document.getElementById('detail-meta');
+  meta.innerHTML = `
+    <label>Dias bônus
+      <input type="number" id="input-dias-bonus" min="0" value="${project.diasBonus}" style="width:60px" />
+    </label>
+    <button type="button" id="btn-salvar-bonus">Salvar dias bônus</button>
+    <button type="button" id="btn-toggle-ativo">
+      ${project.ativo ? 'Marcar como concluído/inativo' : 'Reativar na fila'}
+    </button>
+  `;
+
+  meta.querySelector('#btn-salvar-bonus').addEventListener('click', async () => {
+    const diasBonus = Number(meta.querySelector('#input-dias-bonus').value) || 0;
+    await window.api.updateProject(project.id, { diasBonus });
+    await refreshDetail();
+  });
+
+  meta.querySelector('#btn-toggle-ativo').addEventListener('click', async () => {
+    await window.api.updateProject(project.id, { ativo: !project.ativo });
+    document.getElementById('view-detail').classList.add('hidden');
+    document.getElementById('view-macro').classList.remove('hidden');
+    await loadProjects();
+  });
 }
 
 function activateTab(tabName) {
@@ -1302,7 +1357,10 @@ save it, and confirm it disappears from the input but reappears as a
 highlighted banner after clicking "Voltar" and reopening the same project.
 Click "Marcar como resolvido" and confirm the banner disappears. Save some
 notes, estimate, and video fields, reopen the project, and confirm the saved
-values are shown.
+values are shown. In the meta row below the title, set "Dias bônus" to `2`,
+save, reopen the project, and confirm it still shows `2`. Click "Marcar como
+concluído/inativo" and confirm the project disappears from the macro grid
+(it is now `ativo: false`, filtered out by Task 7's grid render).
 
 - [ ] **Step 4: Commit**
 
@@ -1720,11 +1778,9 @@ git commit -m "docs: add usage and packaging instructions"
   view with contexto+lembrete, estimativa, deploy, video (Task 8), env
   (Task 9), credenciais (Task 10), fotos (Task 11), packaging (Task 12).
   The spec's "marcar projeto como inativo" and "editar dias bônus" actions
-  are both covered generically by `updateProject(id, patch)` exposed through
-  `window.api.updateProject` — no dedicated UI control was specced for them
-  beyond the data model, so they are reachable via the same generic API the
-  detail tabs use; a dedicated button can be added later without changing
-  the store or IPC layer.
+  are implemented as dedicated controls in the detail view's `#detail-meta`
+  block (Task 8), backed by `updateProject(id, patch)` exposed through
+  `window.api.updateProject`.
 - **Placeholder scan:** no TBD/TODO markers; every step has concrete code or
   a concrete manual-test procedure with expected output.
 - **Type consistency:** `TAB_RENDERERS` keys/function names match across

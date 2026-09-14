@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fila</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside id="sidebar">
+    <div class="sidebar-head">
+      <button type="button" id="btn-toggle-sidebar" class="sidebar-toggle" aria-expanded="true" title="Ocultar lista" aria-label="Ocultar lista">
+        <span class="toggle-icon" aria-hidden="true"></span>
+      </button>
+      <input id="project-search" type="search" placeholder="Buscar" autocomplete="off" />
+    </div>
+    <div id="sidebar-list" class="sidebar-body"></div>
+  </aside>
+  <div class="shell">
+    <header class="topbar">
+      <div class="topbar-copy">
+        <h1 id="fila-title">Abrir a fila</h1>
+        <p id="fila-period" class="period"></p>
+      </div>
+      <div id="week-track" class="week-track hidden"></div>
+      <div class="top-actions">
+        <button type="button" id="btn-edit-fila" class="ghost hidden">Período</button>
+        <button type="button" id="btn-add-project" class="primary hidden">Adicionar</button>
+      </div>
+    </header>
+
+    <section id="fila-setup" class="setup">
+      <form id="form-fila" class="stack-form">
+        <label>Início
+          <input type="date" name="dataInicio" required />
+        </label>
+        <p id="fila-preview" class="period-preview">O fim é o 7º dia útil, contando o início.</p>
+        <input type="hidden" name="dataFim" />
+        <p id="fila-error" class="form-error"></p>
+        <button type="submit" class="primary">Abrir fila</button>
+      </form>
+    </section>
+
+    <main id="view-macro" class="view hidden">
+            <div id="macro-grid" class="macro-list"></div>
+      <section id="inactive-section" class="inactive-section hidden">
+        <h2>Fora da fila</h2>
+        <div id="inactive-list"></div>
+      </section>
+    </main>
+
+    <main id="view-detail" class="view hidden">
+      <button type="button" id="btn-back-to-macro" class="ghost">Voltar</button>
+      <div class="detail-head">
+        <div id="detail-identity" class="identity identity-lg"></div>
+        <h2 id="detail-title" class="hidden"></h2>
+        <div id="detail-meta"></div>
+        <nav class="tabs">
+          <button class="tab-btn" data-tab="contexto">Contexto</button>
+          <button class="tab-btn" data-tab="estimativa">Estimativa</button>
+          <button class="tab-btn" data-tab="deploy">Deploy</button>
+          <button class="tab-btn" data-tab="video">Vídeo</button>
+          <button class="tab-btn" data-tab="env">Env e hospedagem</button>
+          <button class="tab-btn" data-tab="credenciais">Credenciais</button>
+          <button class="tab-btn" data-tab="fotos">Fotos</button>
+        </nav>
+        <section id="tab-contexto" class="tab-panel"></section>
+        <section id="tab-estimativa" class="tab-panel hidden"></section>
+        <section id="tab-deploy" class="tab-panel hidden"></section>
+        <section id="tab-video" class="tab-panel hidden"></section>
+        <section id="tab-env" class="tab-panel hidden"></section>
+        <section id="tab-credenciais" class="tab-panel hidden"></section>
+        <section id="tab-fotos" class="tab-panel hidden"></section>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="dialog-add-project">
+    <form id="form-add-project" class="stack-form">
+      <h2>Novo projeto</h2>
+      <label>Número
+        <input type="text" name="numero" required autocomplete="off" />
+      </label>
+      <label>Cliente
+        <input type="text" name="cliente" required autocomplete="off" />
+      </label>
+      <label>Contexto
+        <input type="text" name="contextoMacro" required autocomplete="off" />
+      </label>
+      <p id="add-project-error" class="form-error"></p>
+      <div class="form-actions">
+        <button type="button" id="btn-cancel-add-project" class="ghost">Cancelar</button>
+        <button type="submit" class="primary">Adicionar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialog-day-review">
+    <form method="dialog" class="stack-form">
+      <h2 id="day-review-title">Pendências do dia</h2>
+      <div id="day-review-body"></div>
+      <div class="form-actions">
+        <button type="submit" class="primary">Fechar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialog-fila">
+    <form id="form-fila-edit" class="stack-form">
+      <h2>Período da fila</h2>
+      <label>Início
+        <input type="date" name="dataInicio" required />
+      </label>
+      <p id="fila-edit-preview" class="period-preview"></p>
+      <input type="hidden" name="dataFim" />
+      <p id="fila-edit-error" class="form-error"></p>
+      <div class="form-actions">
+        <button type="button" id="btn-cancel-fila" class="ghost">Cancelar</button>
+        <button type="submit" class="primary">Salvar período</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+  <script src="detail.js"></script>
+</body>
+</html>

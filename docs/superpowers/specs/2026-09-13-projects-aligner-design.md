@@ -83,6 +83,7 @@ Arquivo `data/projects.json`, lista de projetos:
       },
 
       "ultimoDeploy": null,                 // ISO timestamp ou null
+      "ultimoChecklistFeitoEm": null,       // ISO timestamp da última marcação de checklist como feito, ou null
 
       "estimativa": { "feita": false, "nota": "" },
       "video":      { "feito": false, "nota": "" },
@@ -131,15 +132,17 @@ dias que o projeto "vive" na fila mas **não** desloca os gatilhos abaixo.
 
 ### Status do Deploy (calculado, não é campo editável diretamente)
 - **Nunca implantado**: `ultimoDeploy` é `null`.
-- **Pendente**: existe alguma data em `checklistHistorico` (marcada `true`)
-  posterior a `ultimoDeploy`.
-- **Atualizado**: `ultimoDeploy` é mais recente que todas as datas marcadas
-  em `checklistHistorico`.
+- **Pendente**: `ultimoChecklistFeitoEm` existe e é posterior a `ultimoDeploy`.
+- **Atualizado**: `ultimoDeploy` existe e é mais recente ou igual a
+  `ultimoChecklistFeitoEm`, ou nenhum checklist foi marcado como feito ainda.
 
 Ação do usuário "Marcar deploy feito" seta `ultimoDeploy = now()`.
-Marcar o checklist do dia de hoje como feito não mexe em `ultimoDeploy`,
-apenas grava a entrada em `checklistHistorico`, o que pode fazer o status
-calculado virar "pendente" (se antes estava "atualizado").
+Marcar o checklist do dia de hoje como feito grava a entrada em
+`checklistHistorico` e atualiza `ultimoChecklistFeitoEm = now()`, sem mexer em
+`ultimoDeploy`; isso pode fazer o status calculado virar "pendente" (se antes
+estava "atualizado"). Se o usuário marcar checklist como feito e em seguida
+marcar deploy no mesmo dia, o deploy fica "atualizado". `checklistHistorico`
+permanece apenas como registro do toggle diário.
 
 ### Lembrete para o próximo dia
 Campo de texto livre (`lembreteProximoDia`), preenchido no detalhe do
