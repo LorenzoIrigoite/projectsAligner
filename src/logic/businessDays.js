@@ -29,4 +29,46 @@ function getQueueTriggers(businessDayCount) {
   };
 }
 
-module.exports = { countBusinessDays, getQueueTriggers };
+function toISODate(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function queueEndDate(startDateStr, businessDays = 7) {
+  if (!startDateStr) throw new Error('Informe o início da fila.');
+  const start = toUTCDate(startDateStr);
+  const startIsBusinessDay = !isWeekend(start);
+  let cursor = start;
+  while (isWeekend(cursor)) cursor = new Date(cursor.getTime() + DAY_MS);
+
+  const firstBusinessDay = toISODate(cursor);
+  let counted = 0;
+  while (counted < businessDays) {
+    if (!isWeekend(cursor)) counted += 1;
+    if (counted === businessDays) break;
+    cursor = new Date(cursor.getTime() + DAY_MS);
+  }
+
+  return {
+    dataInicio: startDateStr,
+    dataFim: toISODate(cursor),
+    startIsBusinessDay,
+    firstBusinessDay,
+    businessDays,
+  };
+}
+
+function listQueueDays(startDateStr, businessDays = 7) {
+  const { firstBusinessDay } = queueEndDate(startDateStr, businessDays);
+  const days = [];
+  let cursor = toUTCDate(firstBusinessDay);
+  while (days.length < businessDays) {
+    if (!isWeekend(cursor)) days.push(toISODate(cursor));
+    cursor = new Date(cursor.getTime() + DAY_MS);
+  }
+  return days;
+}
+
+module.exports = { countBusinessDays, getQueueTriggers, queueEndDate, listQueueDays };

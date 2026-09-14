@@ -12,7 +12,10 @@ test('annotateProject combines business days and deploy status into a view model
     checklistHistorico: {},
   };
 
-  const annotated = annotateProject(project, '2024-01-08');
+  const annotated = annotateProject(project, '2024-01-08', {
+    dataInicio: '2024-01-01',
+    dataFim: '2024-01-12',
+  });
 
   assert.equal(annotated.id, 'abc');
   assert.equal(annotated.diasUteis, 6);
@@ -30,7 +33,10 @@ test('annotateProject defaults diasBonus to 0 when missing', () => {
     checklistHistorico: {},
   };
 
-  const annotated = annotateProject(project, '2024-01-01');
+  const annotated = annotateProject(project, '2024-01-01', {
+    dataInicio: '2024-01-01',
+    dataFim: '2024-01-12',
+  });
   assert.equal(annotated.diasBonus, 0);
 });
 
@@ -43,7 +49,10 @@ test('annotateProject marks deploy pending when checklist completion is newer th
     checklistHistorico: { '2024-01-02': true },
   };
 
-  const annotated = annotateProject(project, '2024-01-02');
+  const annotated = annotateProject(project, '2024-01-02', {
+    dataInicio: '2024-01-01',
+    dataFim: '2024-01-12',
+  });
   assert.equal(annotated.statusDeploy, 'pendente');
 });
 
@@ -56,6 +65,9 @@ test('annotateProject marks deploy updated when deploy is newer than checklist c
     checklistHistorico: { '2024-01-02': true },
   };
 
-  const annotated = annotateProject(project, '2024-01-02');
+  const annotated = annotateProject(project, '2024-01-02', {
+    dataInicio: '2024-01-01',
+    dataFim: '2024-01-12',
+  });
   assert.equal(annotated.statusDeploy, 'atualizado');
 });
