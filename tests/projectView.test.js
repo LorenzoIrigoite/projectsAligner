@@ -8,6 +8,7 @@ test('annotateProject combines business days and deploy status into a view model
     dataEntradaFila: '2024-01-01',
     diasBonus: 2,
     ultimoDeploy: null,
+    ultimoChecklistFeitoEm: null,
     checklistHistorico: {},
   };
 
@@ -25,9 +26,36 @@ test('annotateProject defaults diasBonus to 0 when missing', () => {
     id: 'xyz',
     dataEntradaFila: '2024-01-01',
     ultimoDeploy: null,
+    ultimoChecklistFeitoEm: null,
     checklistHistorico: {},
   };
 
   const annotated = annotateProject(project, '2024-01-01');
   assert.equal(annotated.diasBonus, 0);
+});
+
+test('annotateProject marks deploy pending when checklist completion is newer than deploy', () => {
+  const project = {
+    id: 'pending',
+    dataEntradaFila: '2024-01-01',
+    ultimoDeploy: '2024-01-02T10:00:00.000Z',
+    ultimoChecklistFeitoEm: '2024-01-02T11:00:00.000Z',
+    checklistHistorico: { '2024-01-02': true },
+  };
+
+  const annotated = annotateProject(project, '2024-01-02');
+  assert.equal(annotated.statusDeploy, 'pendente');
+});
+
+test('annotateProject marks deploy updated when deploy is newer than checklist completion', () => {
+  const project = {
+    id: 'updated',
+    dataEntradaFila: '2024-01-01',
+    ultimoDeploy: '2024-01-02T11:00:00.000Z',
+    ultimoChecklistFeitoEm: '2024-01-02T10:00:00.000Z',
+    checklistHistorico: { '2024-01-02': true },
+  };
+
+  const annotated = annotateProject(project, '2024-01-02');
+  assert.equal(annotated.statusDeploy, 'atualizado');
 });

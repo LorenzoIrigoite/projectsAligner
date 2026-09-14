@@ -1,12 +1,11 @@
-function computeDeployStatus(ultimoDeploy, checklistHistorico) {
+function computeDeployStatus(ultimoDeploy, ultimoChecklistFeitoEm) {
   if (!ultimoDeploy) return 'nunca_implantado';
+  if (!ultimoChecklistFeitoEm) return 'atualizado';
 
   const deployTime = new Date(ultimoDeploy).getTime();
-  const hasNewerChecklist = Object.entries(checklistHistorico || {}).some(
-    ([dateStr, done]) => done && new Date(`${dateStr}T23:59:59Z`).getTime() > deployTime
-  );
+  const checklistTime = new Date(ultimoChecklistFeitoEm).getTime();
 
-  return hasNewerChecklist ? 'pendente' : 'atualizado';
+  return checklistTime > deployTime ? 'pendente' : 'atualizado';
 }
 
 module.exports = { computeDeployStatus };

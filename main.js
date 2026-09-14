@@ -50,7 +50,7 @@ ipcMain.handle('projects:add', (_event, payload) => store.addProject(payload));
 ipcMain.handle('projects:update', (_event, id, patch) => store.updateProject(id, patch));
 
 ipcMain.handle('projects:toggleChecklistToday', (_event, id, done) =>
-  store.toggleChecklistToday(id, todayStr(), done)
+  store.toggleChecklistToday(id, todayStr(), done, new Date().toISOString())
 );
 
 ipcMain.handle('projects:markDeployDone', (_event, id) =>

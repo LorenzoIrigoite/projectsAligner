@@ -28,7 +28,7 @@ for unit tests, `electron-builder` for packaging a Windows installer.
 - Checklist is a single daily toggle per project, not a customizable sub-item list.
 - "Dias bônus" are informational only — they never shift the day-6/7 deploy or day-7 video/env triggers.
 - The "lembrete para o próximo dia" only surfaces in the project detail view, never on the macro grid.
-- Deploy status is always derived (never a directly-editable field): `nunca_implantado` / `pendente` / `atualizado`, computed from `ultimoDeploy` vs. `checklistHistorico`.
+- Deploy status is always derived (never a directly-editable field): `nunca_implantado` / `pendente` / `atualizado`, computed from `ultimoDeploy` vs. `ultimoChecklistFeitoEm`; marking a checklist done and then marking deploy done on the same day yields `atualizado`.
 - Persisted data (`projects.json`, `uploads/`) lives under `app.getPath('userData')`, never inside the repo working tree.
 
 ---

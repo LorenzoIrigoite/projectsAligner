@@ -4,7 +4,7 @@ const { computeDeployStatus } = require('./deployStatus');
 function annotateProject(project, todayDateStr) {
   const diasUteis = countBusinessDays(project.dataEntradaFila, todayDateStr);
   const triggers = getQueueTriggers(diasUteis);
-  const statusDeploy = computeDeployStatus(project.ultimoDeploy, project.checklistHistorico);
+  const statusDeploy = computeDeployStatus(project.ultimoDeploy, project.ultimoChecklistFeitoEm);
 
   return {
     ...project,

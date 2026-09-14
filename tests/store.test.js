@@ -23,13 +23,14 @@ test('addProject persists a project with default fields', () => {
   assert.equal(project.ativo, true);
   assert.deepEqual(project.checklistHistorico, {});
   assert.equal(project.ultimoDeploy, null);
+  assert.equal(project.ultimoChecklistFeitoEm, null);
 
   const all = store.getAllProjects();
   assert.equal(all.length, 1);
   assert.equal(all[0].id, project.id);
 });
 
-test('toggleChecklistToday records the date in checklistHistorico', () => {
+test('toggleChecklistToday records the date and checklist completion timestamp', () => {
   const store = makeTempStore();
   const project = store.addProject({
     numero: '1',
@@ -38,9 +39,29 @@ test('toggleChecklistToday records the date in checklistHistorico', () => {
     dataEntradaFila: '2024-01-01',
   });
 
-  store.toggleChecklistToday(project.id, '2024-01-02', true);
+  const nowIso = '2024-01-02T10:30:00.000Z';
+  store.toggleChecklistToday(project.id, '2024-01-02', true, nowIso);
   const updated = store.getProject(project.id);
   assert.equal(updated.checklistHistorico['2024-01-02'], true);
+  assert.equal(updated.ultimoChecklistFeitoEm, nowIso);
+});
+
+test('toggleChecklistToday false updates history without rewinding completion timestamp', () => {
+  const store = makeTempStore();
+  const project = store.addProject({
+    numero: '1',
+    cliente: 'Cliente',
+    contextoMacro: 'Contexto',
+    dataEntradaFila: '2024-01-01',
+  });
+
+  const nowIso = '2024-01-02T10:30:00.000Z';
+  store.toggleChecklistToday(project.id, '2024-01-02', true, nowIso);
+  store.toggleChecklistToday(project.id, '2024-01-02', false, '2024-01-02T11:00:00.000Z');
+
+  const updated = store.getProject(project.id);
+  assert.equal(updated.checklistHistorico['2024-01-02'], false);
+  assert.equal(updated.ultimoChecklistFeitoEm, nowIso);
 });
 
 test('markDeployDone sets ultimoDeploy', () => {

@@ -43,6 +43,7 @@ function createStore(baseDir) {
       ativo: true,
       checklistHistorico: {},
       ultimoDeploy: null,
+      ultimoChecklistFeitoEm: null,
       estimativa: { feita: false, nota: '' },
       video: { feito: false, nota: '' },
       contexto: '',
@@ -65,11 +66,13 @@ function createStore(baseDir) {
     return data.projects[index];
   }
 
-  function toggleChecklistToday(id, dateStr, done) {
+  function toggleChecklistToday(id, dateStr, done, nowIso) {
     const project = getProject(id);
     if (!project) throw new Error(`Projeto não encontrado: ${id}`);
     const checklistHistorico = { ...project.checklistHistorico, [dateStr]: done };
-    return updateProject(id, { checklistHistorico });
+    const patch = { checklistHistorico };
+    if (done === true && nowIso) patch.ultimoChecklistFeitoEm = nowIso;
+    return updateProject(id, patch);
   }
 
   function markDeployDone(id, nowIso) {
