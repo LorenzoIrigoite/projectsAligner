@@ -1,0 +1,23 @@
+{
+  "name": "projects-aligner",
+  "version": "1.0.0",
+  "description": "App local para organizar a fila de projetos de trabalho",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.lorenzo.projectsaligner",
+    "productName": "Projects Aligner",
+    "files": ["main.js", "preload.js", "src/**/*", "renderer/**/*"],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
