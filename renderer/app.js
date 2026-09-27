@@ -95,16 +95,21 @@ function renderAgendaPanel() {
   const panel = document.getElementById('agenda-panel');
   if (!panel) return;
   const agenda = state.agenda || [];
+  panel.classList.toggle('hidden', agenda.length === 0);
+  if (agenda.length === 0) {
+    panel.innerHTML = '';
+    return;
+  }
   const today = localDateStr();
   panel.innerHTML = `
     <div class="agenda-head">
       <div>
         <p class="panel-title">Meetings de hoje</p>
-        <p class="panel-sub">${agenda.length ? `${agenda.length} compromisso(s)` : 'Nenhum meeting agendado para hoje'}</p>
+        <p class="panel-sub">${agenda.length} compromisso(s)</p>
       </div>
     </div>
     <div class="agenda-list">
-      ${agenda.length ? agenda.map((meeting) => `
+      ${agenda.map((meeting) => `
         <div class="agenda-item${meeting.feito ? ' is-done' : ''}" data-project-id="${escapeHtml(meeting.projectId || '')}">
           <time datetime="${escapeHtml(`${today}T${meeting.hora || '00:00'}`)}">${escapeHtml(meeting.hora || '--:--')}</time>
           <span class="agenda-copy">
@@ -116,7 +121,7 @@ function renderAgendaPanel() {
             <button type="button" data-meeting-remove="${escapeHtml(meeting.id)}">Remover</button>
           </span>
         </div>
-      `).join('') : '<p class="agenda-empty">Use + Meeting no projeto para montar sua agenda.</p>'}
+      `).join('')}
     </div>
   `;
   panel.querySelectorAll('.agenda-item').forEach((item) => {
@@ -761,6 +766,8 @@ function applySidebarCollapsed(collapsed) {
   button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   button.title = collapsed ? 'Mostrar lista' : 'Ocultar lista';
   button.setAttribute('aria-label', collapsed ? 'Mostrar lista' : 'Ocultar lista');
+  const icon = button.querySelector('.toggle-icon');
+  if (icon) icon.textContent = collapsed ? '›' : '‹';
   try {
     localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
   } catch (err) {

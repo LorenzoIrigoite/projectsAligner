@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-  "test": "node --test tests/businessDays.test.js tests/deployStatus.test.js tests/projectView.test.js tests/store.test.js tests/weekProgress.test.js tests/dayFlow.test.js tests/lembrete.test.js tests/credentialPopup.test.js tests/layoutOverflow.test.js tests/projectHeaderEdit.test.js",
+  "test": "node --test tests/businessDays.test.js tests/deployStatus.test.js tests/projectView.test.js tests/store.test.js tests/weekProgress.test.js tests/dayFlow.test.js tests/lembrete.test.js tests/credentialPopup.test.js tests/layoutOverflow.test.js tests/projectHeaderEdit.test.js tests/agendaPanel.test.js",
   "dist": "electron-builder"
   },
   "devDependencies": {
