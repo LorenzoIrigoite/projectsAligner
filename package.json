@@ -5,8 +5,9 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-  "test": "node --test tests/businessDays.test.js tests/deployStatus.test.js tests/projectView.test.js tests/store.test.js tests/weekProgress.test.js tests/dayFlow.test.js tests/lembrete.test.js tests/credentialPopup.test.js tests/layoutOverflow.test.js tests/projectHeaderEdit.test.js tests/agendaPanel.test.js",
-  "dist": "electron-builder"
+    "test": "node --test tests/businessDays.test.js tests/deployStatus.test.js tests/projectView.test.js tests/store.test.js tests/weekProgress.test.js tests/dayFlow.test.js tests/lembrete.test.js tests/credentialPopup.test.js tests/layoutOverflow.test.js tests/projectHeaderEdit.test.js tests/agendaPanel.test.js tests/verifyScript.test.js",
+    "verify": "npm test && node --check renderer/app.js && node --check renderer/detail.js && npm run dist",
+    "dist": "electron-builder"
   },
   "devDependencies": {
     "electron": "^31.0.0",

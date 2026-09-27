@@ -1143,23 +1143,16 @@ body.sidebar-collapsed #view-macro::after { left: 56px; }
   box-shadow: 0 28px 80px rgba(18, 27, 36, 0.18);
 }
 
-.detail-credential-rail {
-  position: fixed;
-  right: 24px;
-  top: 50%;
-  z-index: 24;
-  transform: translateY(-50%);
-  writing-mode: vertical-rl;
-  min-height: 120px;
-  padding: 14px 9px;
-  border: 1px solid #b7c2cc;
-  border-radius: 14px 0 0 14px;
+.credential-toolbar-button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid rgba(18, 27, 36, 0.12);
+  border-radius: 10px;
   background: #0f1720;
   color: #fff;
-  font-weight: 800;
+  font-weight: 750;
   letter-spacing: 0;
   cursor: pointer;
-  box-shadow: 0 12px 28px rgba(15, 23, 32, 0.22);
 }
 
 .credential-popup {
