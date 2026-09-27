@@ -385,7 +385,7 @@ async function openCredentialPicker() {
   document.getElementById('dialog-credential-picker').showModal();
 }
 
-document.getElementById('detail-credential-rail').addEventListener('click', openCredentialPicker);
+document.getElementById('btn-open-credentials').addEventListener('click', openCredentialPicker);
 document.getElementById('btn-copy-credential-login').addEventListener('click', () => copyCredentialField('login'));
 document.getElementById('btn-copy-credential-password').addEventListener('click', () => copyCredentialField('senha'));
 

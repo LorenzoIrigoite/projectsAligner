@@ -10,17 +10,19 @@ test('project modal exposes credential copy popups and side button', () => {
   const detail = fs.readFileSync(path.join(root, 'renderer', 'detail.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
 
-  assert.match(html, /id="detail-credential-rail"/);
+  assert.match(html, /id="btn-open-credentials"/);
   assert.match(html, /id="dialog-credential-picker"/);
   assert.match(html, /id="dialog-credential-copy"/);
   assert.match(detail, /openCredentialPicker/);
   assert.match(detail, /copyCredentialField/);
   assert.match(detail, /copiedCredentialFields\.login && copiedCredentialFields\.senha/);
-  assert.match(css, /\.detail-credential-rail\s*{[^}]*position:\s*fixed;/s);
+  assert.match(html, /<div class="detail-toolbar">[\s\S]*id="btn-open-credentials"[\s\S]*id="btn-back-to-macro"/);
+  assert.match(css, /\.credential-toolbar-button/);
 });
 
 test('credential copy button belongs to project modal overlay, not inside detail card', () => {
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
 
-  assert.match(html, /<\/div>\s*<button type="button" id="detail-credential-rail"/);
+  assert.doesNotMatch(html, /id="detail-credential-rail"/);
+  assert.match(html, /id="btn-open-credentials"/);
 });
