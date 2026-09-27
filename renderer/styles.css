@@ -47,8 +47,11 @@ body.modal-open {
   width: 252px;
   flex: 0 0 252px;
   height: 100vh;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -249,22 +252,14 @@ body.sidebar-collapsed #sidebar {
 .sidebar-toggle:hover { background: #3a3e45; }
 .sidebar-toggle:active { transform: none; }
 
-.toggle-icon::before {
-  content: "‹";
-  font-size: 22px;
-  line-height: 32px;
-  font-weight: 400;
-}
-
-body.sidebar-collapsed .toggle-icon::before {
-  content: "›";
-}
-
 .toggle-icon {
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 400;
 }
 
 #project-search {
@@ -428,7 +423,13 @@ button:active { transform: translateY(1px); }
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
+  margin-left: 252px;
   padding: 28px 34px 52px;
+  transition: margin-left var(--ease);
+}
+
+body.sidebar-collapsed .shell {
+  margin-left: 56px;
 }
 
 .topbar {
@@ -1143,12 +1144,11 @@ body.sidebar-collapsed #view-macro::after { left: 56px; }
 }
 
 .detail-credential-rail {
-  position: sticky;
-  right: 0;
-  bottom: 22px;
-  z-index: 4;
-  float: right;
-  margin: 0 -1px 18px 12px;
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  z-index: 24;
+  transform: translateY(-50%);
   writing-mode: vertical-rl;
   min-height: 120px;
   padding: 14px 9px;
@@ -1662,6 +1662,10 @@ body.sidebar-collapsed #view-macro::after { left: 56px; }
 
 @media (max-width: 720px) {
   body { flex-direction: column; }
+  .shell,
+  body.sidebar-collapsed .shell {
+    margin-left: 0;
+  }
   #sidebar,
   body.sidebar-collapsed #sidebar {
     width: 100%;
