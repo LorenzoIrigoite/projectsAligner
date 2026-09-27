@@ -40,28 +40,49 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-function viewOf(project) {
-  return annotateProject(project, todayStr(), store.getFila());
+function viewOf(project, fila = store.getFila()) {
+  return annotateProject(project, todayStr(), fila);
 }
 
-ipcMain.handle('projects:getAll', () => store.getAllProjects().map(viewOf));
+function currentFila() {
+  return store.ensureCurrentFila(todayStr());
+}
 
-ipcMain.handle('projects:get', (_event, id) => {
+ipcMain.handle('projects:getAll', (_event, fila) => {
+  const targetFila = fila || currentFila();
+  return store.getAllProjects().map((project) => viewOf(project, targetFila));
+});
+
+ipcMain.handle('projects:get', (_event, id, fila) => {
   const project = store.getProject(id);
-  return project ? viewOf(project) : null;
+  return project ? viewOf(project, fila || currentFila()) : null;
 });
 
 ipcMain.handle('fila:get', () => {
-  const fila = store.getFila();
+  const fila = currentFila();
   if (!fila) return null;
   return { ...fila, dias: listQueueDays(fila.dataInicio, 7) };
 });
+
+ipcMain.handle('fila:getSavedQueues', () =>
+  store.getSavedQueues().map((fila) => ({ ...fila, dias: listQueueDays(fila.dataInicio, 7) }))
+);
+
+ipcMain.handle('fila:create', (_event, payload) => store.createFila(payload));
 
 ipcMain.handle('fila:preview', (_event, dataInicio) => queueEndDate(dataInicio, 7));
 
 ipcMain.handle('fila:set', (_event, payload) => store.setFila(payload));
 
 ipcMain.handle('projects:add', (_event, payload) => store.addProject(payload));
+
+ipcMain.handle('projects:getQueue', (_event, fila) => store.getProjectsForQueue(fila || store.getFila()).map((project) => viewOf(project, fila || store.getFila())));
+
+ipcMain.handle('projects:moveInQueue', (_event, id, direction) => store.moveProjectInQueue(id, direction));
+
+ipcMain.handle('projects:reorderQueue', (_event, orderIds, fila) => store.reorderQueueProjects(orderIds, fila || store.getFila()));
+
+ipcMain.handle('projects:resetQueueOrder', () => store.resetQueueOrder());
 
 ipcMain.handle('projects:update', (_event, id, patch) => {
   if (patch && patch.estimativa) {
@@ -93,6 +114,8 @@ ipcMain.handle('projects:update', (_event, id, patch) => {
   return store.updateProject(id, patch);
 });
 
+ipcMain.handle('projects:remove', (_event, id) => store.removeProject(id));
+
 ipcMain.handle('projects:toggleChecklistToday', (_event, id, done) =>
   store.toggleChecklistToday(id, todayStr(), done, new Date().toISOString())
 );
@@ -101,15 +124,47 @@ ipcMain.handle('projects:toggleVideoToday', (_event, id, done) =>
   store.toggleVideoToday(id, todayStr(), done)
 );
 
+ipcMain.handle('projects:setTaskOnDate', (_event, id, dateStr, task, done) =>
+  store.setTaskOnDate(id, dateStr, task, done, new Date().toISOString())
+);
+
 ipcMain.handle('projects:markDeployDone', (_event, id) =>
   store.markDeployDone(id, new Date().toISOString(), todayStr())
 );
 
 ipcMain.handle('projects:clearDeploy', (_event, id) => store.clearDeploy(id));
 
+ipcMain.handle('projects:markMeetingDone', (_event, id, dateStr, contexto, tipo) =>
+  store.markMeetingDone(id, dateStr || todayStr(), contexto || '', tipo || 'alinhamento')
+);
+
+ipcMain.handle('meetings:schedule', (_event, id, payload) => store.scheduleMeeting(id, payload));
+
+ipcMain.handle('meetings:getAgenda', (_event, dateStr) => store.getAgendaMeetings(dateStr || todayStr()));
+
+ipcMain.handle('meetings:setDone', (_event, meetingId, done) => store.setMeetingDone(meetingId, done));
+
+ipcMain.handle('meetings:remove', (_event, meetingId) => store.removeMeeting(meetingId));
+
 ipcMain.handle('projects:setDeployToday', (_event, id, done) =>
   store.setDeployOnDate(id, todayStr(), done, new Date().toISOString())
 );
+
+ipcMain.handle('projects:markEstimativaDone', (_event, id) =>
+  store.markEstimativaDone(id, new Date().toISOString(), todayStr())
+);
+
+ipcMain.handle('projects:clearEstimativa', (_event, id) => store.clearEstimativa(id));
+
+ipcMain.handle('projects:setEstimativaOnDate', (_event, id, dateStr, done) =>
+  store.setEstimativaOnDate(id, dateStr, done, new Date().toISOString())
+);
+
+ipcMain.handle('projects:markVideoDone', (_event, id) =>
+  store.markVideoDone(id, new Date().toISOString(), todayStr())
+);
+
+ipcMain.handle('projects:clearVideo', (_event, id) => store.clearVideo(id));
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif']);
 

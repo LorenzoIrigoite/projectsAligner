@@ -25,6 +25,7 @@ function countBusinessDays(startDateStr, todayDateStr) {
 function getQueueTriggers(businessDayCount) {
   return {
     deployObrigatorio: businessDayCount === 6 || businessDayCount === 7,
+    estimativaObrigatoria: businessDayCount === 6,
     videoEEnv: businessDayCount === 7,
   };
 }

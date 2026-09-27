@@ -21,11 +21,17 @@ test('countBusinessDays returns 0 when today is before the start date', () => {
   assert.equal(countBusinessDays('2024-01-01', '2023-12-25'), 0);
 });
 
-test('getQueueTriggers flags deploy obrigatorio only on day 6 and day 7', () => {
+test('getQueueTriggers flags deploy obrigatorio on the last two queue days', () => {
   assert.equal(getQueueTriggers(5).deployObrigatorio, false);
   assert.equal(getQueueTriggers(6).deployObrigatorio, true);
   assert.equal(getQueueTriggers(7).deployObrigatorio, true);
   assert.equal(getQueueTriggers(8).deployObrigatorio, false);
+});
+
+test('getQueueTriggers flags estimativa only on the penultimate queue day', () => {
+  assert.equal(getQueueTriggers(5).estimativaObrigatoria, false);
+  assert.equal(getQueueTriggers(6).estimativaObrigatoria, true);
+  assert.equal(getQueueTriggers(7).estimativaObrigatoria, false);
 });
 
 test('queueEndDate counts the start weekday as day 1 of 7', () => {

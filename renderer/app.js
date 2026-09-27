@@ -1,37 +1,201 @@
-const state = { projects: [], fila: null };
+const state = { projects: [], fila: null, filaAtual: null, agenda: [] };
+const stateHistory = { queueList: [] };
 
 if (typeof window.api === 'undefined') {
   window.api = createBrowserPreviewApi();
 }
 
 async function loadProjects() {
-  state.fila = await window.api.getFila();
-  state.projects = await window.api.getAllProjects();
+  state.filaAtual = await window.api.getFila();
+  if (!state.fila) state.fila = state.filaAtual;
+  state.projects = await window.api.getAllProjects(state.fila);
+  state.agenda = window.api.getAgendaMeetings ? await window.api.getAgendaMeetings() : [];
   renderBoard();
 }
 
+async function loadSavedQueues() {
+  stateHistory.queueList = window.api.getSavedQueues ? await window.api.getSavedQueues() : [];
+  renderHistoryGrid();
+}
+
+function showCurrentQueueView() {
+  state.fila = state.filaAtual;
+  document.getElementById('view-history').classList.add('hidden');
+  document.getElementById('view-macro').classList.remove('hidden');
+  document.getElementById('btn-back-to-current-queue').classList.add('hidden');
+}
+
+function showHistoryView() {
+  document.getElementById('view-macro').classList.add('hidden');
+  document.getElementById('view-history').classList.remove('hidden');
+  document.getElementById('btn-back-to-current-queue').classList.remove('hidden');
+}
+
+function isProjectInCurrentQueue(project, fila) {
+  if (project.semFila) return false;
+  if (!fila) return !!project.ativo;
+  if (!project.ativo) return false;
+  if (!project.dataEntradaFila) return true;
+  return project.dataEntradaFila >= fila.dataInicio && project.dataEntradaFila <= fila.dataFim;
+}
+
+function sortQueueProjects(projects) {
+  return [...projects].sort((a, b) => {
+    const aOrder = Number.isFinite(Number(a.ordemFila)) ? Number(a.ordemFila) : Number.MAX_SAFE_INTEGER;
+    const bOrder = Number.isFinite(Number(b.ordemFila)) ? Number(b.ordemFila) : Number.MAX_SAFE_INTEGER;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    const aNum = Number(String(a.numero).trim()) || Number.MAX_SAFE_INTEGER;
+    const bNum = Number(String(b.numero).trim()) || Number.MAX_SAFE_INTEGER;
+    if (aNum !== bNum) return aNum - bNum;
+    return String(a.cliente || '').localeCompare(String(b.cliente || ''), 'pt-BR', { sensitivity: 'base' });
+  });
+}
+
 function renderBoard() {
-  const hasFila = Boolean(state.fila);
+  const hasFila = Boolean(state.filaAtual);
+  const viewingCurrent = state.fila && state.filaAtual && state.fila.dataInicio === state.filaAtual.dataInicio;
   document.getElementById('fila-setup').classList.toggle('hidden', hasFila);
-  document.getElementById('view-macro').classList.toggle('hidden', !hasFila || !document.getElementById('view-detail').classList.contains('hidden'));
-  document.getElementById('btn-add-project').classList.toggle('hidden', !hasFila);
-  document.getElementById('btn-edit-fila').classList.toggle('hidden', !hasFila);
+  const historyVisible = !document.getElementById('view-history').classList.contains('hidden');
+  document.getElementById('view-macro').classList.toggle('hidden', !hasFila || historyVisible);
+  document.getElementById('view-history').classList.toggle('hidden', !historyVisible);
+  document.getElementById('btn-add-project').classList.toggle('hidden', !hasFila || !viewingCurrent);
+  document.getElementById('btn-edit-fila').classList.toggle('hidden', !hasFila || !viewingCurrent);
+  document.getElementById('btn-history-queues').classList.toggle('hidden', !hasFila);
+  document.getElementById('btn-new-meeting').classList.toggle('hidden', !hasFila);
+  document.getElementById('btn-back-to-current-queue').classList.toggle('hidden', viewingCurrent);
 
   if (!hasFila) {
     document.getElementById('fila-title').textContent = 'Abrir a fila';
     document.getElementById('fila-period').textContent = 'O período é da fila, não de cada projeto.';
     document.getElementById('week-track').classList.add('hidden');
     renderSidebar();
+    updateScrollFadeState();
     return;
   }
 
-  const active = state.projects.filter((p) => p.ativo);
-  document.getElementById('fila-title').textContent = 'Fila da semana';
+  const active = sortQueueProjects(state.projects.filter((project) => isProjectInCurrentQueue(project, state.fila)));
+  document.getElementById('fila-title').textContent = viewingCurrent ? 'Fila da semana' : 'Fila salva';
   document.getElementById('fila-period').textContent =
     `${formatDay(state.fila.dataInicio)} – ${formatDay(state.fila.dataFim)} · ${active.length} de 8`;
   renderWeekTrack(active);
+  renderAgendaPanel();
   renderMacroGrid();
+  renderHistoryGrid();
   renderSidebar();
+  updateScrollFadeState();
+}
+
+function meetingMotivoLabel(value) {
+  if (value === 'primeiro_meet') return 'Primeiro meet';
+  if (value === 'recompra') return 'Recompra';
+  return 'Alinhamento';
+}
+
+function renderAgendaPanel() {
+  const panel = document.getElementById('agenda-panel');
+  if (!panel) return;
+  const agenda = state.agenda || [];
+  const today = localDateStr();
+  panel.innerHTML = `
+    <div class="agenda-head">
+      <div>
+        <p class="panel-title">Meetings de hoje</p>
+        <p class="panel-sub">${agenda.length ? `${agenda.length} compromisso(s)` : 'Nenhum meeting agendado para hoje'}</p>
+      </div>
+    </div>
+    <div class="agenda-list">
+      ${agenda.length ? agenda.map((meeting) => `
+        <div class="agenda-item${meeting.feito ? ' is-done' : ''}" data-project-id="${escapeHtml(meeting.projectId || '')}">
+          <time datetime="${escapeHtml(`${today}T${meeting.hora || '00:00'}`)}">${escapeHtml(meeting.hora || '--:--')}</time>
+          <span class="agenda-copy">
+            <strong>${escapeHtml(meeting.numero)} · ${escapeHtml(meeting.cliente)}</strong>
+            <span>${escapeHtml(meetingMotivoLabel(meeting.motivo))}${meeting.contexto ? ` · ${escapeHtml(meeting.contexto)}` : ''}</span>
+          </span>
+          <span class="agenda-actions">
+            <button type="button" data-meeting-done="${escapeHtml(meeting.id)}">${meeting.feito ? 'Reabrir' : 'Feito'}</button>
+            <button type="button" data-meeting-remove="${escapeHtml(meeting.id)}">Remover</button>
+          </span>
+        </div>
+      `).join('') : '<p class="agenda-empty">Use + Meeting no projeto para montar sua agenda.</p>'}
+    </div>
+  `;
+  panel.querySelectorAll('.agenda-item').forEach((item) => {
+    item.addEventListener('click', (event) => {
+      if (event.target.closest('button')) return;
+      if (item.dataset.projectId) openDetail(item.dataset.projectId);
+    });
+  });
+  panel.querySelectorAll('[data-meeting-done]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const meeting = state.agenda.find((item) => item.id === button.dataset.meetingDone);
+      await window.api.setMeetingDone(button.dataset.meetingDone, !meeting?.feito);
+      await loadProjects();
+    });
+  });
+  panel.querySelectorAll('[data-meeting-remove]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      await window.api.removeMeeting(button.dataset.meetingRemove);
+      await loadProjects();
+    });
+  });
+}
+
+function updateScrollFadeState() {
+  const sidebar = document.querySelector('.sidebar-body');
+  sidebar?.classList.toggle('has-overflow', sidebar.scrollHeight > sidebar.clientHeight + 8);
+
+  const detailModal = document.querySelector('.detail-modal');
+  if (detailModal) {
+    detailModal.classList.toggle('has-overflow', detailModal.scrollHeight > detailModal.clientHeight + 8);
+  }
+}
+
+window.addEventListener('resize', updateScrollFadeState);
+
+async function loadHistoryQueues() {
+  stateHistory.queueList = window.api.getSavedQueues ? await window.api.getSavedQueues() : [];
+  renderHistoryGrid();
+}
+
+async function renderHistoryGrid() {
+  const historyGrid = document.getElementById('history-grid');
+  const queues = stateHistory.queueList || [];
+  historyGrid.innerHTML = '';
+
+  if (queues.length === 0) {
+    historyGrid.innerHTML = '<p class="empty-state">Ainda não há filas salvas.</p>';
+    return;
+  }
+
+  for (const queue of queues) {
+    const queueProjects = window.api.getAllProjects ? await window.api.getAllProjects(queue) : state.projects;
+    const pending = queueProjects.filter((project) => {
+      const inQueue = project.ativo && project.dataEntradaFila && project.dataEntradaFila >= queue.dataInicio && project.dataEntradaFila <= queue.dataFim;
+      if (!inQueue) return false;
+      const today = localDateStr();
+      const day = (project.semana || []).find((item) => item.date === today);
+      return !!day && day.status === 'current';
+    });
+
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'history-card';
+    card.innerHTML = `
+      <div class="history-card-head">
+        <strong>${formatDay(queue.dataInicio)} – ${formatDay(queue.dataFim)}</strong>
+        ${pending.length ? `<span class="history-pending">${escapeHtml(pending.map((project) => `${project.numero} ${project.cliente}`).join(' · '))}</span>` : '<span class="history-clear">Sem pendência</span>'}
+      </div>
+      <span class="history-meta">${pending.length ? `${pending.length} pendência(s)` : 'Fila em dia'}</span>
+    `;
+    card.addEventListener('click', async () => {
+      const nextFila = { dataInicio: queue.dataInicio, dataFim: queue.dataFim, dias: queue.dias || [] };
+      state.fila = nextFila;
+      document.getElementById('view-history').classList.add('hidden');
+      document.getElementById('view-macro').classList.remove('hidden');
+      await loadProjects();
+    });
+    historyGrid.appendChild(card);
+  }
 }
 
 function statusLabel(status) {
@@ -44,6 +208,12 @@ function formatDay(iso) {
   if (!iso) return '';
   const [year, month, day] = iso.split('-').map(Number);
   return new Date(year, month - 1, day).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+}
+
+function plataformaLabel(value) {
+  if (value === 'app') return 'APP';
+  if (value === 'app_web') return 'APP/WEB';
+  return 'WEB';
 }
 
 function identityMarkup(project, extraClass = '') {
@@ -60,6 +230,10 @@ function identityMarkup(project, extraClass = '') {
       <div class="id-col">
         <span class="id-label">Contexto</span>
         <span class="id-value id-ctx">${escapeHtml(project.contextoMacro)}</span>
+      </div>
+      <div class="id-col">
+        <span class="id-label">Plataforma</span>
+        <span class="id-value id-platform">${escapeHtml(plataformaLabel(project.plataforma))}</span>
       </div>
     </div>
   `;
@@ -128,10 +302,17 @@ function renderWeekTrack(active) {
 function openDayReview(dateStr, active) {
   const dialog = document.getElementById('dialog-day-review');
   const title = document.getElementById('day-review-title');
+  const dayNumber = (state.fila?.dias || []).indexOf(dateStr) + 1;
+  title.textContent = `Dia ${dayNumber} · ${formatDay(dateStr)}`;
+  renderDayReview(dateStr, active);
+  dialog.showModal();
+}
+
+function renderDayReview(dateStr, active) {
   const body = document.getElementById('day-review-body');
+  const dialog = document.getElementById('dialog-day-review');
   const dayNumber = (state.fila?.dias || []).indexOf(dateStr) + 1;
   const closed = dateStr < localDateStr();
-  title.textContent = `Dia ${dayNumber} · ${formatDay(dateStr)}`;
 
   const rows = (active || []).map((project) => {
     const day = (project.semana || []).find((item) => item.date === dateStr);
@@ -143,18 +324,34 @@ function openDayReview(dateStr, active) {
     body.innerHTML = `<p class="hint">${closed ? 'Esse dia fechou sem pendência.' : 'Nada obrigatório em aberto hoje.'}</p>`;
   } else {
     body.innerHTML = `
-      <p class="hint">${closed ? 'Ficou pendente quando o dia virou.' : 'Ainda falta hoje.'}</p>
+      <p class="hint">${closed ? 'Ficou pendente quando o dia virou.' : 'Marque o que foi resolvido neste projeto.'}</p>
       <ul class="day-review-list">
         ${rows.map((row) => `
           <li>
             <strong>${escapeHtml(row.project.numero)} ${escapeHtml(row.project.cliente)}</strong>
-            <span>${row.faltas.map((item) => escapeHtml(item)).join(' · ')}</span>
+            <div class="day-review-tasks">
+              ${row.faltas.map((item) => `
+                <label class="day-review-task">
+                  <input type="checkbox" data-project-id="${escapeHtml(row.project.id)}" data-task="${escapeHtml(item)}" />
+                  <span>${escapeHtml(item)}</span>
+                </label>
+              `).join('')}
+            </div>
           </li>
         `).join('')}
       </ul>
     `;
   }
-  dialog.showModal();
+
+  body.querySelectorAll('.day-review-task input').forEach((input) => {
+    input.addEventListener('change', async () => {
+      input.disabled = true;
+      await window.api.setTaskOnDate(input.dataset.projectId, dateStr, input.dataset.task, input.checked);
+      await loadProjects();
+      const nextActive = sortQueueProjects(state.projects.filter((project) => isProjectInCurrentQueue(project, state.fila)));
+      renderDayReview(dateStr, nextActive);
+    });
+  });
 }
 
 function firstCredential(project) {
@@ -173,15 +370,9 @@ function loginMarkup(project) {
 
 function noteLines(project) {
   const lines = [];
-  if (project.env?.gatewayPagamento) {
-    lines.push(`GATEWAY: ${project.env.gatewayPagamento}`);
-  }
+  if (project.env?.gatewayPagamento) lines.push(`GATEWAY: ${project.env.gatewayPagamento}`);
   const contexto = String(project.contexto || '').trim();
-  if (contexto) {
-    contexto.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).forEach((line) => {
-      lines.push(line);
-    });
-  }
+  if (contexto) contexto.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).forEach((line) => lines.push(line));
   return lines.slice(0, 2);
 }
 
@@ -189,7 +380,7 @@ function requiredLabels(project, today) {
   const day = (project.semana || []).find((item) => item.date === today);
   if (!day || day.status === 'future') return [];
   if (day.dayNumber === 7) return ['Checklist', 'Deploy', 'Vídeo'];
-  if (day.dayNumber === 6) return ['Checklist', 'Deploy'];
+  if (day.dayNumber === 6) return ['Checklist', 'Estimativa', 'Deploy'];
   return ['Checklist'];
 }
 
@@ -198,9 +389,7 @@ function hasDeployToday(project, today) {
 }
 
 function hasVideoToday(project, today) {
-  if (project.videoHistorico && Object.prototype.hasOwnProperty.call(project.videoHistorico, today)) {
-    return !!project.videoHistorico[today];
-  }
+  if (project.videoHistorico && Object.prototype.hasOwnProperty.call(project.videoHistorico, today)) return !!project.videoHistorico[today];
   const video = project.video;
   if (!video?.feito) return false;
   if (!video.feitoEm) return true;
@@ -212,33 +401,26 @@ function marksMarkup(project, today) {
   const markClass = (name) => (required.has(name) ? 'mark is-required' : 'mark');
   const checklistDone = !!project.checklistHistorico[today];
   const deployToday = hasDeployToday(project, today);
-  const caption = required.size
-    ? `Hoje: ${[...required].join(', ')}`
+  const videoDone = hasVideoToday(project, today);
+  const estimativaDone = !!project.estimativa?.feita;
+  const dayDone = (project.semana || []).some((day) => day.date === today && day.status === 'done');
+  {
+  // Pendente = card aberto. Concluído no dia = card menor.
+  const visibleMarks = dayDone
+    ? [checklistDone ? 'Checklist' : null, estimativaDone ? 'Estimativa' : null, deployToday ? 'Deploy' : null, videoDone ? 'Vídeo' : null].filter(Boolean)
+    : ['Checklist', 'Estimativa', 'Deploy', 'Vídeo'];
+  }
+  const visibleMarks = [...required];
+  const markup = {
+    Checklist: `<label class="${markClass('Checklist')}"><input type="checkbox" class="chk-checklist" ${checklistDone ? 'checked' : ''} /><span class="mark-box" aria-hidden="true"></span>Checklist</label>`,
+    Estimativa: `<label class="mark"><input type="checkbox" class="chk-estimativa" ${estimativaDone ? 'checked' : ''} /><span class="mark-box" aria-hidden="true"></span>Estimativa</label>`,
+    Deploy: `<label class="${markClass('Deploy')}"><input type="checkbox" class="chk-deploy" ${deployToday ? 'checked' : ''} /><span class="mark-box" aria-hidden="true"></span>Deploy</label>`,
+    Vídeo: `<label class="${markClass('Vídeo')}"><input type="checkbox" class="chk-video" ${videoDone ? 'checked' : ''} /><span class="mark-box" aria-hidden="true"></span>Vídeo</label>`,
+  };
+  const caption = !dayDone && required.size
+    ? `<p class="card-required">Hoje: ${escapeHtml([...required].join(', '))}</p>`
     : '';
-  return `
-    <div class="card-marks">
-      <label class="${markClass('Checklist')}">
-        <input type="checkbox" class="chk-checklist" ${checklistDone ? 'checked' : ''} />
-        Checklist
-      </label>
-      <span class="mark-sep" aria-hidden="true">|</span>
-      <label class="mark">
-        <input type="checkbox" class="chk-estimativa" ${project.estimativa?.feita ? 'checked' : ''} />
-        Estimativa
-      </label>
-      <span class="mark-sep" aria-hidden="true">|</span>
-      <label class="${markClass('Deploy')}">
-        <input type="checkbox" class="chk-deploy" ${deployToday ? 'checked' : ''} />
-        Deploy
-      </label>
-      <span class="mark-sep" aria-hidden="true">|</span>
-      <label class="${markClass('Vídeo')}">
-        <input type="checkbox" class="chk-video" ${hasVideoToday(project, today) ? 'checked' : ''} />
-        Vídeo
-      </label>
-    </div>
-    ${caption ? `<p class="card-required">${escapeHtml(caption)}</p>` : ''}
-  `;
+  return `<div class="card-marks">${visibleMarks.map((name, index) => `${index ? '<span class="mark-sep" aria-hidden="true">|</span>' : ''}${markup[name]}`).join('')}</div>${caption}`;
 }
 
 function localDateStr(date = new Date()) {
@@ -263,8 +445,7 @@ function renderMacroGrid() {
   grid.innerHTML = '';
 
   const today = localDateStr();
-  const active = state.projects.filter((p) => p.ativo);
-  const inactive = state.projects.filter((p) => !p.ativo);
+  const active = sortQueueProjects(state.projects.filter((project) => isProjectInCurrentQueue(project, state.fila)));
 
   document.getElementById('btn-add-project').disabled = active.length >= 8;
   document.getElementById('btn-add-project').title = active.length >= 8
@@ -280,14 +461,20 @@ function renderMacroGrid() {
     const todayDone = (project.semana || []).some((day) => day.date === today && day.status === 'done');
     const doneLabel = todayDone ? '<p class="day-done-label">Dia concluído</p>' : '';
     card.className = `project-card${todayDone ? ' is-day-done' : ''}`;
+    card.draggable = true;
     card.tabIndex = 0;
     card.setAttribute('role', 'link');
     card.setAttribute('aria-label', `Abrir ${project.numero} ${project.cliente}`);
 
-    const login = loginMarkup(project);
-    const notes = noteLines(project);
+    const dragHandle = '<button type="button" class="drag-handle" aria-label="Mover projeto" draggable="false">⋮⋮</button>';
+
+    const login = todayDone ? '' : loginMarkup(project);
+    const notes = todayDone ? [] : noteLines(project);
 
     card.innerHTML = `
+      <div class="project-card-header">
+        ${dragHandle}
+      </div>
       <div class="card-main">
         ${identityMarkup(project)}
         ${marksMarkup(project, today)}
@@ -298,8 +485,37 @@ function renderMacroGrid() {
     `;
 
     const open = () => openDetail(project.id);
+    card.addEventListener('dragstart', (event) => {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', project.id);
+      card.classList.add('is-dragging');
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('is-dragging');
+    });
+    card.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      card.classList.add('is-drop-target');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('is-drop-target'));
+    card.addEventListener('drop', async (event) => {
+      event.preventDefault();
+      card.classList.remove('is-drop-target');
+      const draggedId = event.dataTransfer.getData('text/plain');
+      const currentIds = active.map((item) => item.id);
+      const fromIndex = currentIds.indexOf(draggedId);
+      const toIndex = currentIds.indexOf(project.id);
+      if (draggedId && fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex) {
+        const reordered = [...currentIds];
+        const [moved] = reordered.splice(fromIndex, 1);
+        reordered.splice(toIndex, 0, moved);
+        await window.api.reorderQueueProjects(reordered, state.fila);
+        await loadProjects();
+      }
+    });
     card.addEventListener('click', (event) => {
-      if (event.target.closest('.card-marks, input, label, button, a')) return;
+      if (event.target.closest('.card-marks, input, label, button, a, .drag-handle')) return;
       open();
     });
     card.addEventListener('keydown', (event) => {
@@ -320,48 +536,31 @@ function renderMacroGrid() {
       }
     };
 
-    card.querySelector('.chk-checklist').addEventListener('change', (event) => {
+    card.querySelector('.chk-checklist')?.addEventListener('change', (event) => {
       saveMark(() => window.api.toggleChecklistToday(project.id, event.target.checked));
     });
 
-    card.querySelector('.chk-estimativa').addEventListener('change', (event) => {
-      saveMark(() => window.api.updateProject(project.id, {
-        estimativa: {
-          ...project.estimativa,
-          feita: event.target.checked,
-          feitaEm: event.target.checked ? localDateStr() : null,
-        },
-      }));
+    card.querySelector('.chk-estimativa')?.addEventListener('change', (event) => {
+      const work = event.target.checked
+        ? window.api.markEstimativaDone(project.id)
+        : window.api.clearEstimativa(project.id);
+      saveMark(() => work);
     });
 
-    card.querySelector('.chk-video').addEventListener('change', (event) => {
-      const toggle = window.api.toggleVideoToday
-        ? window.api.toggleVideoToday(project.id, event.target.checked)
-        : window.api.updateProject(project.id, { video: { ...project.video, feito: event.target.checked } });
-      saveMark(() => toggle);
+    card.querySelector('.chk-video')?.addEventListener('change', (event) => {
+      const work = event.target.checked
+        ? (window.api.markVideoDone ? window.api.markVideoDone(project.id) : window.api.toggleVideoToday(project.id, true))
+        : (window.api.clearVideo ? window.api.clearVideo(project.id) : window.api.toggleVideoToday(project.id, false));
+      saveMark(() => work);
     });
 
-    card.querySelector('.chk-deploy').addEventListener('change', (event) => {
+    card.querySelector('.chk-deploy')?.addEventListener('change', (event) => {
       saveMark(() => window.api.setDeployToday(project.id, event.target.checked));
     });
 
     grid.appendChild(card);
   });
 
-  const inactiveSection = document.getElementById('inactive-section');
-  const inactiveList = document.getElementById('inactive-list');
-  inactiveList.innerHTML = '';
-  inactiveSection.classList.toggle('hidden', inactive.length === 0);
-  inactive.forEach((project) => {
-    const row = document.createElement('div');
-    row.className = 'inactive-row';
-    row.innerHTML = `
-      ${identityMarkup(project, 'identity-sm')}
-      <button type="button" class="btn-open-inactive ghost">Abrir</button>
-    `;
-    row.querySelector('.btn-open-inactive').addEventListener('click', () => openDetail(project.id));
-    inactiveList.appendChild(row);
-  });
 }
 
 function matchesSearch(project, query) {
@@ -373,9 +572,22 @@ function matchesSearch(project, query) {
 function renderSidebar() {
   const list = document.getElementById('sidebar-list');
   const query = document.getElementById('project-search').value.trim().toLocaleLowerCase('pt-BR');
-  const projects = [...state.projects].sort((a, b) =>
-    `${a.cliente} ${a.numero}`.localeCompare(`${b.cliente} ${b.numero}`, 'pt-BR', { sensitivity: 'base' })
-  );
+  const groupOrder = { current: 0, scheduled: 1, unassigned: 2, inactive: 3 };
+  const queueGroup = (project) => {
+    if (isProjectInCurrentQueue(project, state.fila)) return 'current';
+    if (project.semFila) return 'unassigned';
+    if (!project.ativo) return 'inactive';
+    return 'scheduled';
+  };
+  const projects = [...state.projects].sort((a, b) => {
+    const aGroup = queueGroup(a);
+    const bGroup = queueGroup(b);
+    if (groupOrder[aGroup] !== groupOrder[bGroup]) return groupOrder[aGroup] - groupOrder[bGroup];
+    const aNum = Number(String(a.numero).trim()) || Number.MAX_SAFE_INTEGER;
+    const bNum = Number(String(b.numero).trim()) || Number.MAX_SAFE_INTEGER;
+    if (aNum !== bNum) return aNum - bNum;
+    return `${a.cliente} ${a.numero}`.localeCompare(`${b.cliente} ${b.numero}`, 'pt-BR', { sensitivity: 'base' });
+  });
   const visible = projects.filter((project) => matchesSearch(project, query));
   list.innerHTML = '';
 
@@ -384,7 +596,21 @@ function renderSidebar() {
     return;
   }
 
+  let previousGroup = null;
   visible.forEach((project) => {
+    const group = queueGroup(project);
+    if (group !== previousGroup) {
+      const heading = document.createElement('p');
+      heading.className = 'sidebar-group-label';
+      heading.textContent = {
+        current: 'Fila atual',
+        scheduled: 'Outras filas',
+        unassigned: 'Sem fila',
+        inactive: 'Concluídos',
+      }[group];
+      list.appendChild(heading);
+      previousGroup = group;
+    }
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'sidebar-item';
@@ -402,6 +628,7 @@ function renderSidebar() {
     button.addEventListener('click', () => openDetail(project.id));
     list.appendChild(button);
   });
+
 }
 
 function formatPreview(period) {
@@ -423,8 +650,67 @@ async function fillPeriodPreview(input, previewEl, hiddenEl) {
   previewEl.textContent = formatPreview(period);
 }
 
-document.getElementById('btn-add-project').addEventListener('click', () => {
+function renderAddProjectDestinations() {
+  const select = document.getElementById('add-project-destination');
+  const currentValue = select.value;
+  select.querySelectorAll('[data-saved-queue]').forEach((option) => option.remove());
+  (stateHistory.queueList || [])
+    .filter((queue) => queue.dataInicio !== state.filaAtual?.dataInicio)
+    .forEach((queue) => {
+      const option = document.createElement('option');
+      option.value = `queue:${queue.dataInicio}`;
+      option.dataset.savedQueue = 'true';
+      option.textContent = `Fila de ${formatDay(queue.dataInicio)} a ${formatDay(queue.dataFim)}`;
+      select.insertBefore(option, select.querySelector('option[value="new"]'));
+    });
+  select.value = select.querySelector(`option[value="${CSS.escape(currentValue)}"]`) ? currentValue : 'current';
+  updateAddProjectDestinationUi();
+}
+
+function updateAddProjectDestinationUi() {
+  const select = document.getElementById('add-project-destination');
+  const dateField = document.getElementById('new-queue-date-field');
+  const hint = document.getElementById('add-project-destination-hint');
+  const isNew = select.value === 'new';
+  dateField.classList.toggle('hidden', !isNew);
+  dateField.querySelector('input').required = isNew;
+  hint.textContent = select.value === 'none'
+    ? 'O projeto ficará salvo somente na sidebar até você escolher uma fila.'
+    : isNew
+      ? 'A nova fila será criada sem trocar a fila atual.'
+      : select.value.startsWith('queue:')
+        ? 'O projeto será associado à fila salva escolhida.'
+        : 'A data da fila atual será usada automaticamente.';
+}
+
+document.getElementById('add-project-destination').addEventListener('change', updateAddProjectDestinationUi);
+
+document.getElementById('btn-add-project').addEventListener('click', async () => {
+  await loadSavedQueues();
+  renderAddProjectDestinations();
   document.getElementById('dialog-add-project').showModal();
+});
+
+document.getElementById('btn-history-queues').addEventListener('click', async () => {
+  await loadHistoryQueues();
+  showHistoryView();
+});
+
+document.getElementById('btn-new-meeting').addEventListener('click', () => {
+  currentProjectId = null;
+  openMeetingDialog(null);
+});
+
+document.getElementById('btn-back-to-current-queue').addEventListener('click', async () => {
+  state.fila = state.filaAtual;
+  showCurrentQueueView();
+  await loadProjects();
+});
+
+document.getElementById('btn-open-current-queue').addEventListener('click', async () => {
+  state.fila = state.filaAtual;
+  showCurrentQueueView();
+  await loadProjects();
 });
 
 document.getElementById('btn-cancel-add-project').addEventListener('click', () => {
@@ -438,10 +724,25 @@ document.getElementById('form-add-project').addEventListener('submit', async (ev
   error.textContent = '';
   const formData = new FormData(form);
   try {
+    const destinoFila = formData.get('destinoFila');
+    let dataEntradaFila;
+    let semFila = false;
+    if (destinoFila === 'none') {
+      semFila = true;
+    } else if (destinoFila === 'new') {
+      const created = await window.api.createFila({ dataInicio: formData.get('novaFilaDataInicio') });
+      dataEntradaFila = created.dataInicio;
+    } else if (String(destinoFila).startsWith('queue:')) {
+      dataEntradaFila = String(destinoFila).slice('queue:'.length);
+    }
     await window.api.addProject({
       numero: formData.get('numero'),
       cliente: formData.get('cliente'),
       contextoMacro: formData.get('contextoMacro'),
+      plataforma: formData.get('plataforma'),
+      dataEntradaFila,
+      semFila,
+      ativo: true,
     });
   } catch (err) {
     error.textContent = err.message || 'Não foi possível adicionar o projeto.';
@@ -477,6 +778,7 @@ window.addEventListener('DOMContentLoaded', () => {
   } catch (err) {
     applySidebarCollapsed(false);
   }
+  loadHistoryQueues();
   loadProjects();
   watchDayRollover();
 });
@@ -525,6 +827,7 @@ async function saveFila(form, errorEl, dialog) {
     return;
   }
   if (dialog) dialog.close();
+  state.fila = null;
   await loadProjects();
 }
 
@@ -540,7 +843,7 @@ document.getElementById('form-fila').dataInicio.addEventListener('change', (even
 
 document.getElementById('btn-edit-fila').addEventListener('click', async () => {
   const form = document.getElementById('form-fila-edit');
-  form.dataInicio.value = state.fila.dataInicio;
+  form.dataInicio.value = state.filaAtual.dataInicio;
   document.getElementById('fila-edit-error').textContent = '';
   await fillPeriodPreview(form.dataInicio, document.getElementById('fila-edit-preview'), form.dataFim);
   document.getElementById('dialog-fila').showModal();
@@ -728,6 +1031,11 @@ function createBrowserPreviewApi() {
     },
     getAllProjects: async () => projects.map((project) => withView(project)),
     getProject: async (id) => withView(findProject(id)),
+    getSavedQueues: async () => [],
+    createFila: async ({ dataInicio }) => {
+      const created = { dataInicio, dataFim: dataInicio };
+      return created;
+    },
     addProject: async (payload) => {
       const project = {
         id: `p${projects.length + 1}`,
@@ -745,6 +1053,7 @@ function createBrowserPreviewApi() {
         env: { backendUrl: '', frontendUrl: '', gatewayPagamento: '', chavesApi: [], envRaw: '' },
         credenciais: [],
         fotos: [],
+        semFila: Boolean(payload.semFila),
         diasUteis: 1,
         statusDeploy: 'nunca_implantado',
         avisoDeployObrigatorio: false,
@@ -757,6 +1066,38 @@ function createBrowserPreviewApi() {
       const project = findProject(id);
       Object.assign(project, patch);
       return withView(project);
+    },
+    reorderQueueProjects: async (orderIds) => {
+      const positions = new Map(orderIds.map((id, index) => [id, index]));
+      projects.sort((a, b) => (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+      return projects.map(withView);
+    },
+    getAgendaMeetings: async () => projects.flatMap((project) => (project.meetings || []).map((meeting) => ({
+      ...meeting,
+      numero: project.numero,
+      cliente: project.cliente,
+      contextoMacro: project.contextoMacro,
+    }))).filter((meeting) => meeting.data === today).sort((a, b) => String(a.hora).localeCompare(String(b.hora))),
+    scheduleMeeting: async (id, payload) => {
+      const project = findProject(id);
+      const meeting = { id: `m${Date.now()}`, projectId: id, ...payload, feito: false };
+      if (project) project.meetings = [...(project.meetings || []), meeting];
+      return meeting;
+    },
+    setMeetingDone: async (meetingId, done) => {
+      projects.forEach((project) => {
+        project.meetings = (project.meetings || []).map((meeting) => (
+          meeting.id === meetingId ? { ...meeting, feito: done } : meeting
+        ));
+      });
+    },
+    removeMeeting: async (meetingId) => {
+      projects.forEach((project) => {
+        project.meetings = (project.meetings || []).filter((meeting) => meeting.id !== meetingId);
+      });
+    },
+    removeProject: async (id) => {
+      projects = projects.filter((project) => project.id !== id);
     },
     toggleVideoToday: async (id, done) => {
       const project = findProject(id);

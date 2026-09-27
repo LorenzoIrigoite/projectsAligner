@@ -1,12 +1,12 @@
 {
   "name": "projects-aligner",
-  "version": "1.1.1",
+  "version": "1.2.15",
   "description": "App local para organizar a fila de projetos de trabalho",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/businessDays.test.js tests/deployStatus.test.js tests/projectView.test.js tests/store.test.js tests/weekProgress.test.js tests/dayFlow.test.js",
-    "dist": "electron-builder"
+  "test": "node --test tests/businessDays.test.js tests/deployStatus.test.js tests/projectView.test.js tests/store.test.js tests/weekProgress.test.js tests/dayFlow.test.js tests/lembrete.test.js tests/credentialPopup.test.js tests/layoutOverflow.test.js tests/projectHeaderEdit.test.js",
+  "dist": "electron-builder"
   },
   "devDependencies": {
     "electron": "^31.0.0",

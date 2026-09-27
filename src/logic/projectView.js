@@ -1,10 +1,23 @@
-const { countBusinessDays, getQueueTriggers, listQueueDays } = require('./businessDays');
+const { countBusinessDays, getQueueTriggers, listQueueDays, queueEndDate } = require('./businessDays');
 const { computeDeployStatus } = require('./deployStatus');
 const { buildSemana, normalizeDeploys } = require('./weekProgress');
 
+function projectQueuePeriod(project, fila) {
+  const queueStart = fila && fila.dataInicio;
+  const queueEnd = fila && fila.dataFim;
+  const entry = project.dataEntradaFila;
+  if (entry && queueStart && queueEnd && (entry < queueStart || entry > queueEnd)) return null;
+  const startsInsideQueue = entry && queueStart && queueEnd && entry >= queueStart && entry <= queueEnd;
+  const start = startsInsideQueue ? entry : queueStart;
+  if (!start) return null;
+  const period = queueEndDate(start, 7);
+  return { dataInicio: period.dataInicio, dataFim: period.dataFim };
+}
+
 function annotateProject(project, todayDateStr, fila) {
-  const start = fila && fila.dataInicio;
-  const end = fila && fila.dataFim;
+  const period = projectQueuePeriod(project, fila);
+  const start = period && period.dataInicio;
+  const end = period && period.dataFim;
   let countUntil = todayDateStr;
   if (start && end && todayDateStr > end) countUntil = end;
   const diasUteis = start ? countBusinessDays(start, countUntil) : 0;
@@ -25,4 +38,4 @@ function annotateProject(project, todayDateStr, fila) {
   };
 }
 
-module.exports = { annotateProject };
+module.exports = { annotateProject, projectQueuePeriod };

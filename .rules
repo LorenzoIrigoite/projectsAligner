@@ -1,0 +1,4 @@
+Sempre auditar regras de negocio antes de alterar fluxo de filas.
+Sempre cobrir fluxos de fila com testes: criar fila, acessar fila salva, adicionar projeto no meio da fila, mover projeto entre filas, tirar projeto da fila, marcar pendencias por dia.
+Quando o contexto ficar alto, usar a skill caveman para comprimir comunicacao sem perder substancia.
+Preferir testes de unidade para regra de negocio em src/logic e src/data antes de mexer na UI.

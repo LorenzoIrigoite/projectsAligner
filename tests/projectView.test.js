@@ -71,3 +71,39 @@ test('annotateProject marks deploy updated when deploy is newer than checklist c
   });
   assert.equal(annotated.statusDeploy, 'atualizado');
 });
+
+test('annotateProject starts project days at entry date inside the selected queue', () => {
+  const project = {
+    id: 'mid',
+    dataEntradaFila: '2024-01-04',
+    ultimoDeploy: null,
+    ultimoChecklistFeitoEm: null,
+    checklistHistorico: {},
+  };
+
+  const annotated = annotateProject(project, '2024-01-04', {
+    dataInicio: '2024-01-01',
+    dataFim: '2024-01-09',
+  });
+
+  assert.equal(annotated.diasUteis, 1);
+  assert.equal(annotated.semana[0].date, '2024-01-04');
+  assert.equal(annotated.semana[0].status, 'current');
+  assert.equal(annotated.semana.some((day) => day.date === '2024-01-01'), false);
+});
+
+test('annotateProject leaves semana empty when project belongs to another queue', () => {
+  const annotated = annotateProject({
+    id: 'future',
+    dataEntradaFila: '2024-02-05',
+    ultimoDeploy: null,
+    ultimoChecklistFeitoEm: null,
+    checklistHistorico: {},
+  }, '2024-01-04', {
+    dataInicio: '2024-01-01',
+    dataFim: '2024-01-09',
+  });
+
+  assert.equal(annotated.diasUteis, 0);
+  assert.deepEqual(annotated.semana, []);
+});
