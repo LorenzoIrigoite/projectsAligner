@@ -48,7 +48,7 @@ test('day 1 closes and reopens from the checklist, and the ball follows every pr
   assert.equal(queueStatus([store.getProject(a.id), store.getProject(b.id)], today, today), 'current');
 });
 
-test('day 6 needs deploy and day 7 needs video, and unchecking only that day reopens it', () => {
+test('day 6 needs estimativa and deploy, day 7 needs video, and unchecking only that day reopens it', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'projects-aligner-flow-'));
   const store = createStore(dir);
   store.setFila(FILA);
@@ -58,8 +58,9 @@ test('day 6 needs deploy and day 7 needs video, and unchecking only that day reo
   const day7 = days[6];
 
   store.toggleChecklistToday(project.id, day6, true, `${day6}T12:00:00.000Z`);
-  assert.deepEqual(dayStatus(store.getProject(project.id), day6, day6).faltas, ['Deploy']);
+  assert.deepEqual(dayStatus(store.getProject(project.id), day6, day6).faltas, ['Estimativa', 'Deploy']);
 
+  store.setEstimativaOnDate(project.id, day6, true, `${day6}T13:00:00.000Z`);
   store.setDeployOnDate(project.id, day6, true, `${day6}T15:00:00.000Z`);
   assert.equal(dayStatus(store.getProject(project.id), day6, day6).status, 'done');
   store.setDeployOnDate(project.id, day6, false, `${day6}T16:00:00.000Z`);

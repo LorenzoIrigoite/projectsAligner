@@ -23,6 +23,8 @@
       </div>
       <div id="week-track" class="week-track hidden"></div>
       <div class="top-actions">
+        <button type="button" id="btn-history-queues" class="ghost">Filas salvas</button>
+        <button type="button" id="btn-new-meeting" class="ghost">+ Meeting</button>
         <button type="button" id="btn-edit-fila" class="ghost hidden">Período</button>
         <button type="button" id="btn-add-project" class="primary hidden">Adicionar</button>
       </div>
@@ -41,35 +43,53 @@
     </section>
 
     <main id="view-macro" class="view hidden">
-            <div id="macro-grid" class="macro-list"></div>
-      <section id="inactive-section" class="inactive-section hidden">
-        <h2>Fora da fila</h2>
-        <div id="inactive-list"></div>
-      </section>
+      <div class="queue-view-header">
+        <button type="button" id="btn-back-to-current-queue" class="ghost hidden">Voltar para a fila atual</button>
+      </div>
+      <section id="agenda-panel" class="agenda-panel"></section>
+      <div id="macro-grid" class="macro-list"></div>
+    </main>
+
+    <main id="view-history" class="view hidden">
+      <div class="queue-view-header">
+        <button type="button" id="btn-open-current-queue" class="ghost">Voltar para a fila atual</button>
+      </div>
+      <div id="history-grid" class="history-grid"></div>
     </main>
 
     <main id="view-detail" class="view hidden">
-      <button type="button" id="btn-back-to-macro" class="ghost">Voltar</button>
-      <div class="detail-head">
-        <div id="detail-identity" class="identity identity-lg"></div>
-        <h2 id="detail-title" class="hidden"></h2>
-        <div id="detail-meta"></div>
-        <nav class="tabs">
-          <button class="tab-btn" data-tab="contexto">Contexto</button>
-          <button class="tab-btn" data-tab="estimativa">Estimativa</button>
-          <button class="tab-btn" data-tab="deploy">Deploy</button>
-          <button class="tab-btn" data-tab="video">Vídeo</button>
-          <button class="tab-btn" data-tab="env">Env e hospedagem</button>
-          <button class="tab-btn" data-tab="credenciais">Credenciais</button>
-          <button class="tab-btn" data-tab="fotos">Fotos</button>
-        </nav>
-        <section id="tab-contexto" class="tab-panel"></section>
-        <section id="tab-estimativa" class="tab-panel hidden"></section>
-        <section id="tab-deploy" class="tab-panel hidden"></section>
-        <section id="tab-video" class="tab-panel hidden"></section>
-        <section id="tab-env" class="tab-panel hidden"></section>
-        <section id="tab-credenciais" class="tab-panel hidden"></section>
-        <section id="tab-fotos" class="tab-panel hidden"></section>
+      <div class="detail-modal">
+        <header class="detail-header">
+          <div class="detail-toolbar">
+            <div id="detail-lembrete-slot" class="detail-lembrete-slot"></div>
+            <div id="detail-actions-slot" class="detail-actions-slot"></div>
+            <button type="button" id="btn-back-to-macro" class="detail-close" aria-label="Fechar detalhes" title="Fechar detalhes">×</button>
+          </div>
+          <p class="detail-kicker">Detalhes do projeto</p>
+          <h2 id="detail-title">Projeto</h2>
+          <div id="detail-identity" class="identity identity-lg"></div>
+          <div id="detail-meta" class="detail-meta-bar"></div>
+        </header>
+        <div class="detail-body">
+          <div id="detail-progress" class="detail-panel"></div>
+          <nav class="tabs">
+            <button class="tab-btn" data-tab="contexto">Contexto</button>
+            <button class="tab-btn" data-tab="estimativa">Estimativa</button>
+            <button class="tab-btn" data-tab="deploy">Deploy</button>
+            <button class="tab-btn" data-tab="video">Vídeo</button>
+            <button class="tab-btn" data-tab="env">Env e hospedagem</button>
+            <button class="tab-btn" data-tab="credenciais">Credenciais</button>
+            <button class="tab-btn" data-tab="fotos">Fotos</button>
+          </nav>
+          <section id="tab-contexto" class="tab-panel"></section>
+          <section id="tab-estimativa" class="tab-panel hidden"></section>
+          <section id="tab-deploy" class="tab-panel hidden"></section>
+          <section id="tab-video" class="tab-panel hidden"></section>
+          <section id="tab-env" class="tab-panel hidden"></section>
+          <section id="tab-credenciais" class="tab-panel hidden"></section>
+          <section id="tab-fotos" class="tab-panel hidden"></section>
+        </div>
+        <button type="button" id="detail-credential-rail" class="detail-credential-rail" title="Copiar credenciais" aria-label="Copiar credenciais">Credenciais</button>
       </div>
     </main>
   </div>
@@ -86,6 +106,24 @@
       <label>Contexto
         <input type="text" name="contextoMacro" required autocomplete="off" />
       </label>
+      <label>Plataforma
+        <select name="plataforma" required>
+          <option value="web">WEB</option>
+          <option value="app">APP</option>
+          <option value="app_web">APP/WEB</option>
+        </select>
+      </label>
+      <label>Destino do projeto
+        <select name="destinoFila" id="add-project-destination">
+          <option value="current">Fila atual</option>
+          <option value="new">Criar nova fila</option>
+          <option value="none">Sem fila</option>
+        </select>
+      </label>
+      <label id="new-queue-date-field" class="hidden">Início da nova fila
+        <input type="date" name="novaFilaDataInicio" />
+      </label>
+      <p id="add-project-destination-hint" class="hint">A data da fila atual será usada automaticamente.</p>
       <p id="add-project-error" class="form-error"></p>
       <div class="form-actions">
         <button type="button" id="btn-cancel-add-project" class="ghost">Cancelar</button>
@@ -100,6 +138,69 @@
       <div id="day-review-body"></div>
       <div class="form-actions">
         <button type="submit" class="primary">Fechar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialog-meeting">
+    <form id="form-meeting" class="stack-form">
+      <h2>Registrar meeting</h2>
+      <div id="meeting-external-fields" class="meeting-external-fields hidden">
+        <label>Número
+          <input type="text" id="meeting-project-number" placeholder="Opcional" />
+        </label>
+        <label>Cliente
+          <input type="text" id="meeting-client" placeholder="Nome do cliente ou contato" />
+        </label>
+      </div>
+      <p class="hint">Salve o tipo e o contexto do encontro no histórico deste projeto.</p>
+      <label>Tipo de meeting
+        <select id="meeting-type">
+          <option value="primeiro_meet">Primeiro meet</option>
+          <option value="alinhamento">Alinhamento</option>
+          <option value="recompra">Recompra</option>
+        </select>
+      </label>
+      <div class="meeting-schedule-grid">
+        <label>Data
+          <input type="date" id="meeting-date" />
+        </label>
+        <label>Hora
+          <input type="time" id="meeting-time" />
+        </label>
+      </div>
+      <label>Contexto ou pendência abordada
+        <textarea id="meeting-context" rows="7" placeholder="Decisões, pendências ou transcrição do áudio."></textarea>
+      </label>
+      <div id="meeting-history-slot"></div>
+      <div class="form-actions">
+        <button type="button" id="btn-cancel-meeting" class="ghost">Cancelar</button>
+        <button type="submit" class="primary">Salvar meeting</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialog-credential-picker" class="credential-popup">
+    <form method="dialog" class="stack-form">
+      <h2>Contas do projeto</h2>
+      <div id="credential-picker-list" class="credential-picker-list"></div>
+      <div class="form-actions">
+        <button type="submit" class="ghost">Fechar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialog-credential-copy" class="credential-popup">
+    <form method="dialog" class="stack-form">
+      <h2 id="credential-copy-title">Credencial</h2>
+      <p id="credential-copy-login" class="credential-copy-value"></p>
+      <div class="credential-copy-actions">
+        <button type="button" id="btn-copy-credential-login" class="primary">Copiar email</button>
+        <button type="button" id="btn-copy-credential-password" class="primary">Copiar senha</button>
+      </div>
+      <p id="credential-copy-status" class="hint"></p>
+      <div class="form-actions">
+        <button type="submit" class="ghost">Fechar</button>
       </div>
     </form>
   </dialog>

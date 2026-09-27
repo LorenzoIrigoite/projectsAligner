@@ -38,15 +38,25 @@ test('days 1-5 are done only with checklist', () => {
   assert.equal(done, 'done');
 });
 
-test('days 6 and 7 also require a deploy on that day', () => {
+test('day 6 needs checklist, estimativa, and deploy on that day', () => {
   const withCheck = project({ checklistHistorico: { '2024-01-08': true } });
+  assert.deepEqual(
+    require('../src/logic/weekProgress').missingTasks({ dateStr: '2024-01-08', dayNumber: 6, project: withCheck }),
+    ['Estimativa', 'Deploy']
+  );
+
+  const withEstimativa = project({
+    checklistHistorico: { '2024-01-08': true },
+    estimativas: [{ em: '2024-01-08T12:00:00.000Z', data: '2024-01-08' }],
+  });
   assert.equal(
-    computeDayStatus({ dateStr: '2024-01-08', dayNumber: 6, today, project: withCheck }),
+    computeDayStatus({ dateStr: '2024-01-08', dayNumber: 6, today, project: withEstimativa }),
     'current'
   );
 
   const withDeploy = project({
     checklistHistorico: { '2024-01-08': true },
+    estimativas: [{ em: '2024-01-08T12:00:00.000Z', data: '2024-01-08' }],
     deploys: [{ em: '2024-01-08T15:00:00.000Z', data: '2024-01-08' }],
   });
   assert.equal(
@@ -55,7 +65,7 @@ test('days 6 and 7 also require a deploy on that day', () => {
   );
 });
 
-test('day 7 also requires the video', () => {
+test('day 7 needs checklist, deploy, and video, not estimativa', () => {
   const almost = project({
     checklistHistorico: { '2024-01-09': true },
     video: { feito: false },
@@ -64,6 +74,10 @@ test('day 7 also requires the video', () => {
   assert.equal(
     computeDayStatus({ dateStr: '2024-01-09', dayNumber: 7, today: '2024-01-09', project: almost }),
     'current'
+  );
+  assert.deepEqual(
+    require('../src/logic/weekProgress').missingTasks({ dateStr: '2024-01-09', dayNumber: 7, project: almost }),
+    ['Vídeo']
   );
 
   const complete = { ...almost, video: { feito: true, feitoEm: '2024-01-09' } };

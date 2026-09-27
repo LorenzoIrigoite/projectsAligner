@@ -25,6 +25,16 @@ function hasDeployOn(project, dateStr) {
   return normalizeDeploys(project).some((entry) => entry.data === dateStr);
 }
 
+function hasEstimativaOn(project, dateStr) {
+  if (Array.isArray(project.estimativas) && project.estimativas.length > 0) {
+    return project.estimativas.some((entry) => entry.data === dateStr);
+  }
+  const estimativa = project.estimativa;
+  if (!estimativa?.feita) return false;
+  if (!estimativa.feitaEm) return true;
+  return String(estimativa.feitaEm).slice(0, 10) === dateStr;
+}
+
 function videoCovers(project, dateStr) {
   if (project.videoHistorico && Object.prototype.hasOwnProperty.call(project.videoHistorico, dateStr)) {
     return !!project.videoHistorico[dateStr];
@@ -38,6 +48,7 @@ function videoCovers(project, dateStr) {
 function missingTasks({ dateStr, dayNumber, project }) {
   const missing = [];
   if (!project.checklistHistorico?.[dateStr]) missing.push('Checklist');
+  if (dayNumber === 6 && !hasEstimativaOn(project, dateStr)) missing.push('Estimativa');
   if (dayNumber >= 6 && !hasDeployOn(project, dateStr)) missing.push('Deploy');
   if (dayNumber === 7 && !videoCovers(project, dateStr)) missing.push('Vídeo');
   return missing;
@@ -81,6 +92,7 @@ module.exports = {
   localDateFromIso,
   normalizeDeploys,
   hasDeployOn,
+  hasEstimativaOn,
   videoCovers,
   missingTasks,
   computeDayStatus,
